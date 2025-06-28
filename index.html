@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>健康症状分析系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  
+  <!-- 配置Tailwind自定义样式 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36B37E',
+            accent: '#FF7D00',
+            neutral: '#F5F7FA',
+            'neutral-dark': '#333333',
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .symptom-card {
+        @apply bg-white rounded-lg p-3 border border-gray-200 hover:border-primary transition-all duration-300 cursor-pointer;
+      }
+      .symptom-card.selected {
+        @apply bg-primary/5 border-primary text-primary;
+      }
+      .stat-card {
+        @apply bg-white rounded-xl p-4 shadow-sm border border-gray-200 transition-all duration-300;
+      }
+      .btn-primary {
+        @apply bg-primary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50;
+      }
+      .btn-secondary {
+        @apply bg-white text-primary border border-primary font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/50;
+      }
+      .percentage-bar {
+        @apply h-2 rounded-full overflow-hidden;
+      }
+      .percentage-bar-fill {
+        @apply h-full rounded-full transition-all duration-500;
+      }
+    }
+  </style>
+</head>
+
+<body class="font-inter bg-neutral min-h-screen text-neutral-dark">
+  <!-- 顶部导航 -->
+  <header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <h1 class="text-xl font-bold text-primary">
+        <i class="fa fa-heartbeat mr-2"></i>健康症状分析系统
+      </h1>
+      <div class="flex space-x-2">
+        <button id="shareBtn" class="btn-secondary text-sm">
+          <i class="fa fa-share-alt mr-1"></i>分享
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 py-6">
+    <!-- 用户信息表单 -->
+    <section class="bg-white rounded-xl p-5 mb-6 shadow-sm border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4 text-primary">个人信息</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="name" class="block text-sm font-medium mb-1">姓名</label>
+          <input type="text" id="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+        </div>
+        <div>
+          <label for="birthday" class="block text-sm font-medium mb-1">生日</label>
+          <input type="date" id="birthday" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+        </div>
+        <div>
+          <label for="age" class="block text-sm font-medium mb-1">年龄</label>
+          <input type="number" id="age" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+        </div>
+        <div>
+          <label for="phone" class="block text-sm font-medium mb-1">电话</label>
+          <input type="tel" id="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+        </div>
+        <div>
+          <label for="recommender" class="block text-sm font-medium mb-1">推荐人</label>
+          <input type="text" id="recommender" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+        </div>
+      </div>
+    </section>
+
+    <!-- 症状勾选区域 -->
+    <section id="symptomSection" class="mb-6">
+      <h2 class="text-lg font-semibold mb-4 text-primary">
+        <i class="fa fa-list-ul mr-2"></i>身体症状勾选
+      </h2>
+      <p class="text-sm text-gray-500 mb-4">请勾选您目前存在的症状，系统将自动分析健康要素</p>
+      
+      <div id="symptomContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <!-- 症状将通过JavaScript动态生成 -->
+      </div>
+      
+      <div class="mt-6 text-center">
+        <button id="submitBtn" class="btn-primary">
+          <i class="fa fa-calculator mr-1"></i>分析健康要素
+        </button>
+      </div>
+    </section>
+
+    <!-- 统计结果区域（初始隐藏） -->
+    <section id="resultSection" class="hidden mb-6">
+      <h2 class="text-lg font-semibold mb-4 text-primary">
+        <i class="fa fa-bar-chart mr-2"></i>健康要素统计结果
+      </h2>
+      
+      <!-- 总勾选数统计 -->
+      <div class="stat-card mb-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-sm text-gray-500">已勾选症状</p>
+            <h3 id="totalCount" class="text-2xl font-bold text-primary">0</h3>
+          </div>
+          <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+            <i class="fa fa-check-circle text-2xl text-primary"></i>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 病因统计表格 -->
+      <div class="stat-card mb-6 overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">健康要素</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出现次数</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">百分比</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">进度条</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200" id="resultTableBody">
+            <!-- 结果将通过JavaScript动态生成 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- 操作按钮 -->
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <button id="generateImageBtn" class="btn-primary flex-1">
+          <i class="fa fa-image mr-1"></i>生成长图分享
+        </button>
+        <button id="generateReportBtn" class="btn-secondary flex-1">
+          <i class="fa fa-file-text-o mr-1"></i>复制文字报告
+        </button>
+      </div>
+    </section>
+
+    <!-- 加载指示器（初始隐藏） -->
+    <div id="loadingIndicator" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white p-5 rounded-lg text-center">
+        <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p id="loadingText" class="text-primary">处理中，请稍候...</p>
+      </div>
+    </div>
+
+    <!-- 提示弹窗（初始隐藏） -->
+    <div id="toastMessage" class="hidden fixed bottom-4 right-4 bg-primary text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center">
+      <i id="toastIcon" class="fa fa-check mr-2"></i>
+      <span id="toastText">操作成功</span>
+    </div>
+  </main>
+
+  <footer class="bg-white border-t border-gray-200 py-4 mt-8">
+    <div class="container mx-auto px-4 text-center text-sm text-gray-500">
+      <p>© 2025 健康症状分析系统. 保留所有权利.</p>
+    </div>
+  </footer>
+
+  <!-- 分享弹窗（初始隐藏） -->
+  <div id="shareModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+      <h3 class="text-lg font-semibold text-center mb-4 text-primary">分享健康分析结果</h3>
+      <p class="text-center text-gray-500 mb-6">请选择分享方式</p>
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="text-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer">
+          <i class="fa fa-wechat text-2xl text-green-500 mb-2"></i>
+          <p class="text-sm">微信好友</p>
+        </div>
+        <div class="text-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer">
+          <i class="fa fa-weibo text-2xl text-red-500 mb-2"></i>
+          <p class="text-sm">微博</p>
+        </div>
+        <div class="text-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer">
+          <i class="fa fa-share-alt text-2xl text-primary mb-2"></i>
+          <p class="text-sm">更多</p>
+        </div>
+      </div>
+      <div class="text-center">
+        <button id="closeShareModal" class="btn-secondary">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 身体语言简表数据 - 100项症状（与文档1完全一致）
+    const bodyLanguageSymptoms = [
+      { id: 1, name: "记忆力下降" },
+      { id: 2, name: "思维断电" },
+      { id: 3, name: "反应迟钝" },
+      { id: 4, name: "嗜睡" },
+      { id: 5, name: "多梦" },
+      { id: 6, name: "头晕" },
+      { id: 7, name: "头疼" },
+      { id: 8, name: "头麻" },
+      { id: 9, name: "晕车" },
+      { id: 10, name: "失眠" },
+      { id: 11, name: "头面油腻" },
+      { id: 12, name: "脱发" },
+      { id: 13, name: "头发稀少" },
+      { id: 14, name: "易打哈欠" },
+      { id: 15, name: "常叹气" },
+      { id: 16, name: "眼干涩" },
+      { id: 17, name: "眼痒" },
+      { id: 18, name: "眼痛" },
+      { id: 19, name: "视力模糊" },
+      { id: 20, name: "眼屎多" },
+      { id: 21, name: "眼怕光流泪" },
+      { id: 22, name: "麦粒肿" },
+      { id: 23, name: "听力下降" },
+      { id: 24, name: "耳痒" },
+      { id: 25, name: "耳鸣" },
+      { id: 26, name: "耳痛" },
+      { id: 27, name: "耳屎多" },
+      { id: 28, name: "耳内潮湿" },
+      { id: 29, name: "打鼾" },
+      { id: 30, name: "鼻塞" },
+      { id: 31, name: "爱打喷嚏" },
+      { id: 32, name: "常流鼻涕" },
+      { id: 33, name: "鼻炎" },
+      { id: 34, name: "感冒时间长" },
+      { id: 35, name: "嗓子干" },
+      { id: 36, name: "喉咙痒" },
+      { id: 37, name: "喉咙痛" },
+      { id: 38, name: "咳嗽" },
+      { id: 39, name: "痰多" },
+      { id: 40, name: "呼吸困难" },
+      { id: 41, name: "口苦" },
+      { id: 42, name: "口干" },
+      { id: 43, name: "口臭" },
+      { id: 44, name: "口溃疡" },
+      { id: 45, name: "舌溃疡" },
+      { id: 46, name: "嘴唇麻" },
+      { id: 47, name: "舌硬" },
+      { id: 48, name: "胸闷气短" },
+      { id: 49, name: "心慌心悸" },
+      { id: 50, name: "心绞痛" },
+      { id: 51, name: "指甲凹陷" },
+      { id: 52, name: "半月痕少" },
+      { id: 53, name: "手脚脱皮" },
+      { id: 54, name: "手脚出汗" },
+      { id: 55, name: "手脚凉" },
+      { id: 56, name: "手脚热" },
+      { id: 57, name: "手足麻木" },
+      { id: 58, name: "四肢乏力" },
+      { id: 59, name: "静脉曲张" },
+      { id: 60, name: "关节痛" },
+      { id: 61, name: "肩酸痛" },
+      { id: 62, name: "颈椎痛" },
+      { id: 63, name: "腰酸痛" },
+      { id: 64, name: "尿浑浊" },
+      { id: 65, name: "尿多沫" },
+      { id: 66, name: "尿有怪味" },
+      { id: 67, name: "夜尿多" },
+      { id: 68, name: "便秘" },
+      { id: 69, name: "大便不成形" },
+      { id: 70, name: "便溏不净" },
+      { id: 71, name: "高血脂" },
+      { id: 72, name: "高血压" },
+      { id: 73, name: "高血糖" },
+      { id: 74, name: "低血糖" },
+      { id: 75, name: "低血压" },
+      { id: 76, name: "经期头痛" },
+      { id: 77, name: "月经量少" },
+      { id: 78, name: "经期时长" },
+      { id: 79, name: "经期推后" },
+      { id: 80, name: "月经有血块" },
+      { id: 81, name: "乳腺增生" },
+      { id: 82, name: "经期腰痛" },
+      { id: 83, name: "经期提前" },
+      { id: 84, name: "月经量多" },
+      { id: 85, name: "不爱说话" },
+      { id: 86, name: "恶心" },
+      { id: 87, name: "胃胀" },
+      { id: 88, name: "胃酸" },
+      { id: 89, name: "胃痛" },
+      { id: 90, name: "消化不良" },
+      { id: 91, name: "肥胖" },
+      { id: 92, name: "皮肤痒" },
+      { id: 93, name: "湿疹" },
+      { id: 94, name: "各种过敏" },
+      { id: 95, name: "痤疮" },
+      { id: 96, name: "脂肪瘤" },
+      { id: 97, name: "身体异味" },
+      { id: 98, name: "淋巴肿大" },
+      { id: 99, name: "黑痣变大变多" },
+      { id: 100, name: "形体消瘦" }
+    ];
+
+    // 症状与健康要素对应关系（与文档2完全一致）
+    const symptomHealthFactors = [
+      { id: 1, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 2, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 3, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 4, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 5, factors: ["贫血(气血不足)", "微循环不通", "毒素", "情绪"] },
+      { id: 6, factors: ["贫血(气血不足)", "微循环不通", "毒素", "情绪"] },
+      { id: 7, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症", "情绪"] },
+      { id: 8, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症", "情绪"] },
+      { id: 9, factors: ["贫血(气血不足)"] },
+      { id: 10, factors: ["毒素", "血脂粘稠", "情绪"] },
+      { id: 11, factors: ["毒素", "血脂粘稠", "情绪"] },
+      { id: 12, factors: ["贫血(气血不足)", "微循环不通", "血脂粘稠", "情绪"] },
+      { id: 13, factors: ["贫血(气血不足)", "微循环不通", "血脂粘稠", "情绪"] },
+      { id: 14, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 15, factors: ["贫血(气血不足)", "微循环不通", "毒素", "情绪"] },
+      { id: 16, factors: ["贫血(气血不足)", "微循环不通"] },
+      { id: 17, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 18, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 19, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 20, factors: ["毒素", "血脂粘稠"] },
+      { id: 21, factors: ["毒素", "血脂粘稠"] },
+      { id: 22, factors: ["血脂粘稠"] },
+      { id: 23, factors: ["贫血(气血不足)", "微循环不通", "血脂粘稠", "情绪"] },
+      { id: 24, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 25, factors: ["贫血(气血不足)", "微循环不通", "毒素", "情绪"] },
+      { id: 26, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 27, factors: ["毒素", "血脂粘稠"] },
+      { id: 28, factors: ["毒素", "寒凉湿症"] },
+      { id: 29, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 30, factors: ["微循环不通", "血脂粘稠", "寒凉湿症", "免疫"] },
+      { id: 31, factors: ["毒素", "寒凉湿症", "免疫"] },
+      { id: 32, factors: ["寒凉湿症", "免疫"] },
+      { id: 33, factors: ["微循环不通", "寒凉湿症", "免疫"] },
+      { id: 34, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "免疫"] },
+      { id: 35, factors: ["贫血(气血不足)", "微循环不通", "毒素"] },
+      { id: 36, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症", "免疫"] },
+      { id: 37, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "免疫", "情绪"] },
+      { id: 38, factors: ["寒凉湿症", "免疫"] },
+      { id: 39, factors: ["寒凉湿症", "免疫"] },
+      { id: 40, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "免疫"] },
+      { id: 41, factors: ["毒素", "血脂粘稠"] },
+      { id: 42, factors: ["微循环不通", "毒素", "血脂粘稠"] },
+      { id: 43, factors: ["微循环不通", "毒素", "血脂粘稠"] },
+      { id: 44, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 45, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "情绪"] },
+      { id: 46, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠"] },
+      { id: 47, factors: ["微循环不通", "毒素", "血脂粘稠"] },
+      { id: 48, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "情绪"] },
+      { id: 49, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "情绪"] },
+      { id: 50, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 51, factors: ["贫血(气血不足)", "微循环不通"] },
+      { id: 52, factors: ["贫血(气血不足)", "微循环不通"] },
+      { id: 53, factors: ["贫血(气血不足)", "微循环不通"] },
+      { id: 54, factors: ["寒凉湿症"] },
+      { id: 55, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 56, factors: ["微循环不通", "毒素", "血脂粘稠", "寒凉湿症"] },
+      { id: 57, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症"] },
+      { id: 58, factors: ["贫血(气血不足)", "微循环不通", "毒素"] },
+      { id: 59, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症"] },
+      { id: 60, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 61, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 62, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 63, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 64, factors: ["血脂粘稠"] },
+      { id: 65, factors: ["血脂粘稠"] },
+      { id: 66, factors: ["血脂粘稠"] },
+      { id: 67, factors: ["贫血(气血不足)", "微循环不通", "毒素", "寒凉湿症"] },
+      { id: 68, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 69, factors: ["毒素", "血脂粘稠", "寒凉湿症"] },
+      { id: 70, factors: ["毒素", "血脂粘稠", "寒凉湿症"] },
+      { id: 71, factors: ["微循环不通", "血脂粘稠", "寒凉湿症"] },
+      { id: 72, factors: ["微循环不通", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 73, factors: ["微循环不通", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 74, factors: ["贫血(气血不足)", "微循环不通", "情绪"] },
+      { id: 75, factors: ["贫血(气血不足)", "情绪"] },
+      { id: 76, factors: ["贫血(气血不足)", "寒凉湿症", "情绪"] },
+      { id: 77, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "情绪"] },
+      { id: 78, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 79, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "情绪"] },
+      { id: 80, factors: ["贫血(气血不足)", "微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 81, factors: ["微循环不通", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 82, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 83, factors: ["贫血(气血不足)", "微循环不通", "情绪"] },
+      { id: 84, factors: ["毒素", "情绪"] },
+      { id: 85, factors: ["贫血(气血不足)", "情绪"] },
+      { id: 86, factors: ["贫血(气血不足)", "微循环不通", "情绪"] },
+      { id: 87, factors: ["贫血(气血不足)", "寒凉湿症", "情绪"] },
+      { id: 88, factors: ["贫血(气血不足)", "寒凉湿症", "情绪"] },
+      { id: 89, factors: ["贫血(气血不足)", "寒凉湿症", "情绪"] },
+      { id: 90, factors: ["贫血(气血不足)", "毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 91, factors: ["毒素", "血脂粘稠", "寒凉湿症", "情绪"] },
+      { id: 92, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症"] },
+      { id: 93, factors: ["贫血(气血不足)", "微循环不通", "寒凉湿症", "免疫"] },
+      { id: 94, factors: ["贫血(气血不足)", "寒凉湿症", "免疫"] },
+      { id: 95, factors: ["微循环不通", "毒素", "血脂粘稠", "情绪"] },
+      { id: 96, factors: ["毒素", "血脂粘稠", "寒凉湿症"] },
+      { id: 97, factors: ["微循环不通", "毒素", "血脂粘稠"] },
+      { id: 98, factors: ["微循环不通", "毒素", "寒凉湿症", "免疫"] },
+      { id: 99, factors: ["毒素", "寒凉湿症"] },
+      { id: 100, factors: ["贫血(气血不足)", "寒凉湿症", "免疫", "情绪"] }
+    ];
+
+    // 健康要素列表
+    const healthFactorsList = [
+      "贫血(气血不足)",
+      "微循环不通",
+      "毒素",
+      "血脂粘稠",
+      "寒凉湿症",
+      "免疫",
+      "情绪"
+    ];
+
+    // DOM元素
+    const symptomContainer = document.getElementById('symptomContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    const resultSection = document.getElementById('resultSection');
+    const totalCount = document.getElementById('totalCount');
+    const resultTableBody = document.getElementById('resultTableBody');
+    const generateImageBtn = document.getElementById('generateImageBtn');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const loadingText = document.getElementById('loadingText');
+    const shareBtn = document.getElementById('shareBtn');
+    const shareModal = document.getElementById('shareModal');
+    const closeShareModal = document.getElementById('closeShareModal');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastText = document.getElementById('toastText');
+
+    // 已选择的症状ID集合
+    let selectedSymptoms = new Set();
+
+    // 初始化症状列表
+    function initSymptoms() {
+      bodyLanguageSymptoms.forEach(symptom => {
+        const symptomCard = document.createElement('div');
+        symptomCard.className = 'symptom-card';
+        symptomCard.dataset.id = symptom.id;
+        symptomCard.innerHTML = `
+          <input type="checkbox" id="symptom-${symptom.id}" class="hidden">
+          <label for="symptom-${symptom.id}" class="block cursor-pointer">
+            <span class="font-medium">${symptom.id}</span>
+            <span class="ml-2">${symptom.name}</span>
+          </label>
+        `;
+        
+        symptomCard.addEventListener('click', () => {
+          const checkbox = symptomCard.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          
+          if (checkbox.checked) {
+            selectedSymptoms.add(symptom.id);
+            symptomCard.classList.add('selected');
+          } else {
+            selectedSymptoms.delete(symptom.id);
+            symptomCard.classList.remove('selected');
+          }
+        });
+        
+        symptomContainer.appendChild(symptomCard);
+      });
+    }
+
+    // 统计健康要素
+    function calculateHealthFactors() {
+      // 初始化统计对象
+      const factorCount = {
+        "贫血(气血不足)": 0,
+        "微循环不通": 0,
+        "毒素": 0,
+        "血脂粘稠": 0,
+        "寒凉湿症": 0,
+        "免疫": 0,
+        "情绪": 0
+      };
+
+      // 计算每个勾选症状对应的健康要素
+      selectedSymptoms.forEach(symptomId => {
+        const symptom = symptomHealthFactors.find(s => s.id === symptomId);
+        if (symptom) {
+          symptom.factors.forEach(factor => {
+            factorCount[factor]++;
+          });
+        }
+      });
+
+      // 计算总要素数
+      const totalFactors = Object.values(factorCount).reduce((sum, count) => sum + count, 0);
+
+      // 计算百分比
+      const factorPercentages = {};
+      Object.keys(factorCount).forEach(factor => {
+        factorPercentages[factor] = totalFactors > 0 ? 
+          Math.round((factorCount[factor] / totalFactors) * 100) : 0;
+      });
+
+      return {
+        factorCount,
+        factorPercentages,
+        totalFactors
+      };
+    }
+
+    // 显示统计结果
+    function displayResults() {
+      const { factorCount, factorPercentages, totalFactors } = calculateHealthFactors();
+      
+      // 显示总勾选数
+      totalCount.textContent = selectedSymptoms.size;
+      
+      // 清空结果表格
+      resultTableBody.innerHTML = '';
+      
+      // 填充结果表格
+      healthFactorsList.forEach(factor => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+          <td class="px-4 py-3 whitespace-nowrap">
+            <div class="font-medium">${factor}</div>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <div class="text-primary font-medium">${factorCount[factor]}</div>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <div class="text-primary font-medium">${factorPercentages[factor]}%</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="percentage-bar bg-gray-200">
+              <div class="percentage-bar-fill" style="width: ${factorPercentages[factor]}%; background-color: ${getFactorColor(factor)}"></div>
+            </div>
+          </td>
+        `;
+        resultTableBody.appendChild(row);
+      });
+      
+      // 显示结果区域
+      resultSection.classList.remove('hidden');
+      
+      // 滚动到结果区域
+      resultSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 获取健康要素对应的颜色
+    function getFactorColor(factor) {
+      const colorMap = {
+        "贫血(气血不足)": '#165DFF',
+        "微循环不通": '#36B37E',
+        "毒素": '#FF7D00',
+        "血脂粘稠": '#FFAB00',
+        "寒凉湿症": '#86909C',
+        "免疫": '#5E7CE0',
+        "情绪": '#F53F3F'
+      };
+      return colorMap[factor] || '#165DFF';
+    }
+
+    // 生成长图
+    function generateLongImage() {
+      showLoading("正在生成图片...");
+      
+      html2canvas(document.body, {
+        scale: 2,
+        logging: false,
+        letterRendering: true,
+        useCORS: true
+      }).then(canvas => {
+        hideLoading();
+        
+        // 创建分享图片
+        const shareImage = document.createElement('a');
+        shareImage.href = canvas.toDataURL('image/png');
+        shareImage.download = `健康症状分析_${new Date().toISOString().slice(0, 10)}.png`;
+        shareImage.click();
+        
+        // 显示分享弹窗
+        shareModal.classList.remove('hidden');
+      }).catch(error => {
+        hideLoading();
+        showToast("生成图片失败，请重试", "error");
+        console.error("html2canvas error:", error);
+      });
+    }
+
+    // 生成文字报告并复制到剪切板
+    function copyReportToClipboard() {
+      showLoading("正在生成报告...");
+      
+      const { factorCount, factorPercentages, totalFactors } = calculateHealthFactors();
+      const userInfo = {
+        name: document.getElementById('name').value || "未填写",
+        birthday: document.getElementById('birthday').value || "未填写",
+        age: document.getElementById('age').value || "未填写",
+        phone: document.getElementById('phone').value || "未填写",
+        recommender: document.getElementById('recommender').value || "未填写"
+      };
+      
+      // 获取已勾选的症状名称列表
+      const selectedSymptomNames = Array.from(selectedSymptoms)
+        .map(id => bodyLanguageSymptoms.find(s => s.id === id)?.name || `未知症状#${id}`)
+        .join("\n- ");
+
+      // 生成纯文本报告内容
+      let reportContent = "健康症状分析报告\n\n";
+      reportContent += "===== 个人信息 =====\n";
+      reportContent += `姓名: ${userInfo.name}\n`;
+      reportContent += `生日: ${userInfo.birthday}\n`;
+      reportContent += `年龄: ${userInfo.age}\n`;
+      reportContent += `电话: ${userInfo.phone}\n`;
+      reportContent += `推荐人: ${userInfo.recommender}\n\n`;
+      
+      reportContent += "===== 症状统计 =====\n";
+      reportContent += `已勾选症状: ${selectedSymptoms.size} 项\n`;
+      reportContent += selectedSymptoms.size > 0 ? `- ${selectedSymptomNames}\n\n` : "";
+      
+      reportContent += "===== 健康要素分析 =====\n";
+      healthFactorsList.forEach(factor => {
+        reportContent += `${factor}: ${factorCount[factor]} 次 (${factorPercentages[factor]}%)\n`;
+      });
+      
+      reportContent += "\n===== 分析建议 =====\n";
+      reportContent += "根据您的症状分析，建议您关注以上健康要素的改善，如有需要请咨询专业医师。\n";
+      reportContent += "本报告仅供参考，不构成医疗建议。\n\n";
+      reportContent += "生成时间: " + new Date().toLocaleString();
+
+      // 复制到剪切板
+      navigator.clipboard.writeText(reportContent).then(() => {
+        hideLoading();
+        showToast("文字报告已复制到剪切板", "success");
+      }).catch(error => {
+        hideLoading();
+        showToast("复制失败，请手动复制", "error");
+        console.error("Clipboard error:", error);
+      });
+    }
+
+    // 显示提示弹窗
+    function showToast(message, type = "success") {
+      toastText.textContent = message;
+      toastIcon.className = type === "success" ? "fa fa-check mr-2" : "fa fa-times mr-2";
+      toastMessage.className = `fixed bottom-4 right-4 bg-${type === "success" ? "primary" : "red-500"} text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center`;
+      toastMessage.classList.remove('hidden');
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        toastMessage.classList.add('hidden');
+      }, 3000);
+    }
+
+    // 显示加载指示器
+    function showLoading(text) {
+      loadingText.textContent = text || "处理中，请稍候...";
+      loadingIndicator.classList.remove('hidden');
+    }
+
+    // 隐藏加载指示器
+    function hideLoading() {
+      loadingIndicator.classList.add('hidden');
+    }
+
+    // 关闭分享弹窗
+    function closeShare() {
+      shareModal.classList.add('hidden');
+    }
+
+    // 事件监听
+    submitBtn.addEventListener('click', () => {
+      if (selectedSymptoms.size === 0) {
+        showToast("请至少勾选一项症状", "error");
+        return;
+      }
+      displayResults();
+    });
+
+    generateImageBtn.addEventListener('click', generateLongImage);
+    generateReportBtn.addEventListener('click', copyReportToClipboard);
+    shareBtn.addEventListener('click', generateLongImage);
+    closeShareModal.addEventListener('click', closeShare);
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      initSymptoms();
+      
+      // 适配微信环境
+      if (typeof WeixinJSBridge !== 'undefined') {
+        document.addEventListener('WeixinJSBridgeReady', function() {
+          // 微信环境特殊处理
+        });
+      }
+    });
+  </script>
+</body>
+</html>
